@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>A&K Haveservice — Videresendes til booking...</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: Arial, sans-serif;
+      background: #f0f4f0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .card {
+      background: #fff;
+      border-radius: 16px;
+      padding: 40px 36px;
+      max-width: 480px;
+      width: 90%;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.10);
+      text-align: center;
+    }
+    .logo { color: #243329; font-size: 22px; font-weight: 800; margin-bottom: 6px; }
+    .subtitle { color: #6c766f; font-size: 14px; margin-bottom: 28px; }
+    .service-box {
+      background: #eef2ef;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 24px;
+      text-align: left;
+    }
+    .service-label { font-size: 12px; text-transform: uppercase; letter-spacing: 0.12em; color: #6c766f; font-weight: 700; margin-bottom: 8px; }
+    .service-name { font-size: 20px; font-weight: 800; color: #243329; margin-bottom: 12px; }
+    .detail-line { font-size: 15px; color: #3a4a3d; line-height: 1.8; }
+    .price-line { font-size: 26px; font-weight: 800; color: #111; margin-top: 10px; }
+    .spinner {
+      width: 40px; height: 40px;
+      border: 4px solid #e0e8e0;
+      border-top-color: #243329;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 16px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .status { font-size: 15px; color: #4f5b52; margin-bottom: 8px; }
+    .btn {
+      display: inline-block;
+      margin-top: 20px;
+      padding: 14px 28px;
+      background: #243329;
+      color: #fff;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 700;
+      text-decoration: none;
+      cursor: pointer;
+      border: none;
+    }
+    .btn:hover { background: #1b2720; }
+    #manualLink { display: none; margin-top: 16px; }
+    #manualLink a { color: #243329; font-size: 14px; }
+  </style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">A&K Haveservice</div>
+  <div class="subtitle">Haveservice i Aalborg og omegn</div>
+
+  <div class="service-box" id="summaryBox">
+    <div class="service-label">Din beregning</div>
+    <div class="service-name" id="serviceName">—</div>
+    <div class="detail-line" id="detailLines">—</div>
+    <div class="price-line" id="priceLine"></div>
+  </div>
+
+  <div class="spinner" id="spinner"></div>
+  <div class="status" id="statusText">Åbner bookingformularen...</div>
+  <div id="manualLink">
+    <p style="color:#666;font-size:13px;margin-bottom:8px;">Klik her hvis siden ikke åbner automatisk:</p>
+    <a id="manualBtn" class="btn" href="#" target="_blank">Åbn bookingformular</a>
+  </div>
+</div>
+
+<script>
+(function () {
+  var p = new URLSearchParams(window.location.search);
+
+  var service    = p.get('service')    || '';
+  var adresse    = p.get('adresse')    || '';
+  var postnummer = p.get('postnummer') || '';
+  var by         = p.get('by')         || '';
+  var kommentar  = p.get('kommentar')  || '';
+  var bookingUrl = p.get('bookingUrl') || '';
+
+  // Vis service-oversigt
+  var serviceNames = {
+    haek:  'Hækklipning',
+    besk:  'Hækbeskæring',
+    graes: 'Græsslåning',
+    myrer: 'Myrebekæmpelse'
+  };
+  document.getElementById('serviceName').textContent = serviceNames[service] || service || 'Haveservice';
+
+  // Vis detaljer fra kommentar
+  if (kommentar) {
+    var lines = kommentar.split('\n');
+    var priceMatch = kommentar.match(/Beregnet pris:\s*(.+)/);
+    var detailLines = lines.filter(function(l) { return !l.includes('Beregnet pris'); });
+    document.getElementById('detailLines').innerHTML = detailLines.join('<br>');
+    if (priceMatch) {
+      document.getElementById('priceLine').textContent = priceMatch[1];
+    }
+  }
+
+  if (!bookingUrl) {
+    document.getElementById('statusText').textContent = 'Mangler booking-URL. Gå tilbage og prøv igen.';
+    document.getElementById('spinner').style.display = 'none';
+    return;
+  }
+
+  // Gem data i localStorage så bookingformularen kan hente dem
+  try {
+    localStorage.setItem('akhs_prefill', JSON.stringify({
+      adresse: adresse, postnummer: postnummer, by: by, kommentar: kommentar, ts: Date.now()
+    }));
+  } catch(e) {}
+
+  // Byg den fulde booking URL med parametre
+  var url = new URL(decodeURIComponent(bookingUrl));
+  if (adresse)    url.searchParams.set('adresse',    adresse);
+  if (postnummer) url.searchParams.set('postnummer', postnummer);
+  if (by)         url.searchParams.set('by',         by);
+  if (kommentar)  url.searchParams.set('kommentar',  kommentar);
+
+  var finalUrl = url.toString();
+
+  // Vis manuel knap som backup
+  document.getElementById('manualBtn').href = finalUrl;
+
+  // Naviger automatisk efter 1.5 sekunder
+  setTimeout(function () {
+    document.getElementById('statusText').textContent = 'Vælg dato og tid i bookingkalenderen...';
+    document.getElementById('manualLink').style.display = 'block';
+    window.location.href = finalUrl;
+  }, 1500);
+
+})();
+</script>
+</body>
+</html>
